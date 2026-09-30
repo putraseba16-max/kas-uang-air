@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aplikasi Laporan Kas Uang Air</title>
+  <style>
+    * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
+    body { background-color: #f4f7f6; color: #333; padding: 15px; max-width: 980px; margin: 0 auto; }
+    h1, h2 { text-align: center; color: #0288d1; margin-bottom: 15px; }
+    h3 { margin-bottom: 10px; color: #444; }
+    
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 20px; }
+    .card { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); text-align: center; }
+    .card h3 { font-size: 13px; color: #666; margin-bottom: 5px; }
+    .card p { font-size: 18px; font-weight: bold; color: #0288d1; }
+    
+    .form-container { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .form-group { margin-bottom: 12px; }
+    label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 14px; }
+    input, select { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; }
+    
+    button { width: 100%; padding: 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: #fff; }
+    .btn-in { background-color: #2e7d32; }
+    .btn-out { background-color: #c62828; }
+    .btn-set { background-color: #0288d1; margin-top: 5px; }
+    .btn-pdf { background-color: #0288d1; font-size: 15px; margin-bottom: 15px; padding: 12px; }
+    .btn-backup { background-color: #7b1fa2; }
+    .btn-restore { background-color: #e65100; margin-top: 8px; }
+    .btn-del { background: none; border: none; color: #c62828; cursor: pointer; font-weight: bold; }
+    .btn-del-sm { background-color: #c62828; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; }
+    
+    .table-responsive { overflow-x: auto; margin-bottom: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    table { width: 100%; border-collapse: collapse; min-width: 700px; }
+    th, td { padding: 8px 5px; border: 1px solid #e0e0e0; text-align: center; font-size: 12px; }
+    th { background-color: #0288d1; color: #fff; font-weight: 600; }
+    .th-month { font-size: 11px; padding: 4px; }
+    
+    .paid { background-color: #c8e6c9; color: #2e7d32; font-weight: bold; }
+    .unpaid { background-color: #ffebee; color: #c62828; }
+    .stopped { background-color: #eeeeee; color: #9e9e9e; font-style: italic; font-size: 10px; }
+    .text-out { color: #c62828; font-weight: bold; }
+    .text-in { color: #2e7d32; font-weight: bold; }
+    .row-total { font-weight: bold; background-color: #f5f5f5; }
+    .badge-stopped { font-size: 10px; background: #bdbdbd; color: #fff; padding: 2px 5px; border-radius: 3px; margin-left: 4px; }
+    
+    .member-list-item { display: flex; justify-content: space-between; align-items: center; background: #f9f9f9; padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 6px; }
+    
+    @media print {
+      body { background-color: #fff; padding: 0; }
+      .form-container, .btn-pdf, .backup-section, .btn-del, .action-col, .member-mgmt { display: none !important; }
+      .card-grid { display: flex; justify-content: space-between; }
+      .card { border: 1px solid #ccc; box-shadow: none; width: 32%; }
+      table { box-shadow: none; border: 1px solid #ccc; }
+      th { background-color: #0288d1 !important; color: #fff !important; -webkit-print-color-adjust: exact; }
+      .paid { background-color: #e8f5e9 !important; -webkit-print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Laporan Kas Uang Air</h1>
+
+  <!-- Ringkasan Saldo -->
+  <div class="card-grid">
+    <div class="card">
+      <h3>TOTAL SALDO KAS</h3>
+      <p id="totalSaldo">Rp 0</p>
+    </div>
+    <div class="card">
+      <h3>TOTAL PEMASUKAN</h3>
+      <p id="totalPemasukan" style="color: #2e7d32;">Rp 0</p>
+    </div>
+    <div class="card">
+      <h3>TOTAL PENGELUARAN</h3>
+      <p id="totalPengeluaran" style="color: #c62828;">Rp 0</p>
+    </div>
+  </div>
+
+  <button class="btn-pdf" onclick="window.print()">📄 Download / Cetak Laporan PDF</button>
+
+  <!-- Matriks Iuran -->
+  <h2>Matriks Pemasukan Iuran Anggota</h2>
+  <div class="table-responsive">
+    <table>
+      <thead>
+        <tr>
+          <th>Nama Anggota</th>
+          <th class="th-month">JAN</th>
+          <th class="th-month">FEB</th>
+          <th class="th-month">MAR</th>
+          <th class="th-month">APR</th>
+          <th class="th-month">MEI</th>
+          <th class="th-month">JUN</th>
+          <th class="th-month">JUL</th>
+          <th class="th-month">AGU</th>
+          <th class="th-month">SEP</th>
+          <th class="th-month">OKT</th>
+          <th class="th-month">NOV</th>
+          <th class="th-month">DES</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody id="tabelMatriksIuran"></tbody>
+    </table>
+  </div>
+
+  <!-- Form Transaksi Input -->
+  <div class="form-container">
+    <h2>Input Transaksi Kas</h2>
+    
+    <h3>1. Catat Iuran Anggota</h3>
+    <div class="form-group">
+      <label>Pilih Anggota</label>
+      <select id="pilihAnggota"></select>
+    </div>
+    <div class="form-group">
+      <label>Untuk Bulan</label>
+      <select id="bulanIuran">
+        <option value="JAN">Januari</option>
+        <option value="FEB">Februari</option>
+        <option value="MAR">Maret</option>
+        <option value="APR">April</option>
+        <option value="MEI">Mei</option>
+        <option value="JUN">Juni</option>
+        <option value="JUL">Juli</option>
+        <option value="AGU">Agustus</option>
+        <option value="SEP">September</option>
+        <option value="OKT">Oktober</option>
+        <option value="NOV">November</option>
+        <option value="DES">Desember</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Nominal Iuran (Rp)</label>
+      <input type="number" id="nominalIuran" value="30000">
+    </div>
+    <button class="btn-in" onclick="simpanIuran()">+ Simpan Iuran Anggota</button>
+
+    <hr style="margin: 15px 0;">
+
+    <h3>2. Catat Pembelian Galon</h3>
+    <div class="form-group">
+      <label>Tanggal Pembelian</label>
+      <input type="date" id="tglBeli">
+    </div>
+    <div class="form-group">
+      <label>Untuk Bulan</label>
+      <select id="bulanBeli">
+        <option value="JAN">Januari</option>
+        <option value="FEB">Februari</option>
+        <option value="MAR">Maret</option>
+        <option value="APR">April</option>
+        <option value="MEI">Mei</option>
+        <option value="JUN">Juni</option>
+        <option value="JUL">Juli</option>
+        <option value="AGU">Agustus</option>
+        <option value="SEP">September</option>
+        <option value="OKT">Oktober</option>
+        <option value="NOV">November</option>
+        <option value="DES">Desember</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Jumlah Galon (QTY)</label>
+      <input type="number" id="qtyGalon" value="1" min="1">
+    </div>
+    <div class="form-group">
+      <label>Total Harga Bayar (Rp)</label>
+      <input type="number" id="hargaTotalBeli" placeholder="Contoh: 22000">
+    </div>
+    <div class="form-group">
+      <label>Keterangan</label>
+      <input type="text" id="ketBeli" value="Refill Galon">
+    </div>
+    <button class="btn-out" onclick="simpanPengeluaran()">- Simpan Pembelian Galon</button>
+  </div>
+
+  <!-- Kelola & Hapus Anggota -->
+  <div class="form-container member-mgmt">
+    <h2>Kelola & Hapus Anggota</h2>
+    <div class="form-group">
+      <label>Tambah Anggota Baru</label>
+      <div style="display:flex; gap: 5px;">
+        <input type="text" id="namaAnggotaBaru" placeholder="Nama Anggota Baru">
+        <button style="width: 120px; background-color: #0288d1;" onclick="tambahAnggotaBaru()">+ Tambah</button>
+      </div>
+    </div>
+    <label>Daftar Anggota Saat Ini (Klik Hapus untuk Menghapus):</label>
+    <div id="daftarAnggotaContainer" style="margin-top: 10px;"></div>
+  </div>
+
+  <!-- Pengaturan Saldo Awal -->
+  <div class="form-container">
+    <h2>Pengaturan Saldo Awal Kas</h2>
+    <div class="form-group">
+      <label>Nominal Saldo Awal (Rp)</label>
+      <input type="number" id="inputSaldoAwal" placeholder="Contoh: 50000">
+      <button class="btn-set" onclick="setSaldoAwal()">Simpan Saldo Awal</button>
+    </div>
+  </div>
+
+  <!-- Rincian Pengeluaran Galon -->
+  <h2>Rincian Pembelian Air Galon</h2>
+  <div class="table-responsive">
+    <table>
+      <thead>
+        <tr>
+          <th>NO</th>
+          <th>BULAN</th>
+          <th>TANGGAL</th>
+          <th>QTY</th>
+          <th>JUMLAH BAYAR</th>
+          <th>KETERANGAN</th>
+          <th class="action-col">AKSI</th>
+        </tr>
+      </thead>
+      <tbody id="tabelRincianBeli"></tbody>
+    </table>
+  </div>
+
+  <!-- Backup & Restore -->
+  <div class="form-container backup-section">
+    <h2>Backup & Restore Data</h2>
+    <div class="form-group">
+      <button class="btn-backup" onclick="exportBackup()">📥 Download Backup Data (.json)</button>
+    </div>
+    <div class="form-group" style="margin-bottom: 0;">
+      <label>Restore Data</label>
+      <input type="file" id="fileBackup" accept=".json">
+      <button class="btn-restore" onclick="importBackup()">📤 Restore Data (Timpa Data)</button>
+    </div>
+  </div>
+
+  <script>
+    const BULAN_LIST = ["JAN", "FEB", "MAR", "APR", "MEI", "JUN", "JUL", "AGU", "SEP", "OKT", "NOV", "DES"];
+    
+    // 8 Anggota Asli tanpa Aurel
+    let defaultAnggota = [
+      { name: "Pak Ade", stopMonth: null },
+      { name: "Pak Saipul", stopMonth: null },
+      { name: "Pak Irfan", stopMonth: null },
+      { name: "Pak Josua", stopMonth: null },
+      { name: "Pak Adrian", stopMonth: "JUN" },
+      { name: "Pak Mahmud", stopMonth: "JUL" },
+      { name: "Pak Imam", stopMonth: "SEP" },
+      { name: "Pak Haryo", stopMonth: "SEP" }
+    ];
+
+    let defaultData = {
+      saldoAwal: 50000,
+      anggota: defaultAnggota,
+      iuran: {},
+      pengeluaran: []
+    };
+
+    let appData = JSON.parse(localStorage.getItem('appDataKasAir_V3')) || defaultData;
+    document.getElementById('tglBeli').valueAsDate = new Date();
+
+    function setSaldoAwal() {
+      let val = parseFloat(document.getElementById('inputSaldoAwal').value) || 0;
+      appData.saldoAwal = val;
+      simpanData();
+      alert('Saldo awal diperbarui!');
+    }
+
+    function tambahAnggotaBaru() {
+      let nama = document.getElementById('namaAnggotaBaru').value.trim();
+      if (nama && !appData.anggota.some(a => a.name === nama)) {
+        appData.anggota.push({ name: nama, stopMonth: null });
+        document.getElementById('namaAnggotaBaru').value = '';
+        simpanData();
+      }
+    }
+
+    function hapusAnggota(index) {
+      let a = appData.anggota[index];
+      if (confirm(`Yakin ingin menghapus ${a.name} dari daftar anggota?`)) {
+        appData.anggota.splice(index, 1);
+        simpanData();
+      }
+    }
+
+    function simpanIuran() {
+      let nama = document.getElementById('pilihAnggota').value;
+      let bulan = document.getElementById('bulanIuran').value;
+      let nominal = parseFloat(document.getElementById('nominalIuran').value) || 0;
+
+      let key = `${nama}_${bulan}`;
+      if (nominal > 0) {
+        appData.iuran[key] = nominal;
+      } else {
+        delete appData.iuran[key];
+      }
+      simpanData();
+    }
+
+    function simpanPengeluaran() {
+      let tgl = document.getElementById('tglBeli').value;
+      let bulan = document.getElementById('bulanBeli').value;
+      let qty = parseInt(document.getElementById('qtyGalon').value) || 1;
+      let bayar = parseFloat(document.getElementById('hargaTotalBeli').value) || 0;
+      let ket = document.getElementById('ketBeli').value || 'Refill Galon';
+
+      if (bayar <= 0) {
+        alert('Mohon isi jumlah bayar.');
+        return;
+      }
+
+      appData.pengeluaran.push({
+        id: Date.now(),
+        bulan: bulan,
+        tgl: tgl,
+        qty: qty,
+        bayar: bayar,
+        ket: ket
+      });
+
+      document.getElementById('hargaTotalBeli').value = '';
+      simpanData();
+    }
+
+    function hapusPengeluaran(id) {
+      if (confirm('Hapus transaksi pengeluaran ini?')) {
+        appData.pengeluaran = appData.pengeluaran.filter(x => x.id !== id);
+        simpanData();
+      }
+    }
+
+    function simpanData() {
+      localStorage.setItem('appDataKasAir_V3', JSON.stringify(appData));
+      render();
+    }
+
+    function render() {
+      document.getElementById('inputSaldoAwal').value = appData.saldoAwal || 0;
+
+      // Select Option Anggota
+      let selectAnggota = document.getElementById('pilihAnggota');
+      selectAnggota.innerHTML = '';
+      appData.anggota.forEach(a => {
+        let opt = document.createElement('option');
+        opt.value = a.name;
+        opt.innerText = a.name + (a.stopMonth ? ` (Berhenti ${a.stopMonth})` : '');
+        selectAnggota.appendChild(opt);
+      });
+
+      // Render List Kelola Anggota
+      let listContainer = document.getElementById('daftarAnggotaContainer');
+      listContainer.innerHTML = '';
+      appData.anggota.forEach((a, idx) => {
+        let div = document.createElement('div');
+        div.className = 'member-list-item';
+        div.innerHTML = `
+          <span><b>${a.name}</b> ${a.stopMonth ? `<span class="badge-stopped">Stop ${a.stopMonth}</span>` : ''}</span>
+          <button class="btn-del-sm" onclick="hapusAnggota(${idx})">Hapus</button>
+        `;
+        listContainer.appendChild(div);
+      });
+
+      // Render Matriks Iuran
+      let tbodyMatriks = document.getElementById('tabelMatriksIuran');
+      tbodyMatriks.innerHTML = '';
+
+      let totalIuranPerBulan = {};
+      BULAN_LIST.forEach(b => totalIuranPerBulan[b] = 0);
+      let grandTotalIuran = 0;
+
+      appData.anggota.forEach(item => {
+        let nama = item.name;
+        let stopM = item.stopMonth;
+        let stopIdx = stopM ? BULAN_LIST.indexOf(stopM) : 999;
+
+        let tr = document.createElement('tr');
+        let badge = stopM ? `<span class="badge-stopped">Stop ${stopM}</span>` : '';
+        let tdNama = `<td style="text-align:left;"><b>${nama}</b>${badge}</td>`;
+        let tdMonths = '';
+        let totalAnggota = 0;
+
+        BULAN_LIST.forEach((b, idx) => {
+          let val = appData.iuran[`${nama}_${b}`] || 0;
+          totalAnggota += val;
+          totalIuranPerBulan[b] += val;
+
+          if (idx >= stopIdx) {
+            tdMonths += `<td class="stopped">Off</td>`;
+          } else if (val > 0) {
+            tdMonths += `<td class="paid">30k</td>`;
+          } else {
+            tdMonths += `<td class="unpaid">-</td>`;
+          }
+        });
+
+        grandTotalIuran += totalAnggota;
+        tr.innerHTML = `${tdNama}${tdMonths}<td class="text-in">Rp ${totalAnggota.toLocaleString('id-ID')}</td>`;
+        tbodyMatriks.appendChild(tr);
+      });
+
+      let trTotal = document.createElement('tr');
+      trTotal.className = 'row-total';
+      let tdTotalMonths = '';
+      BULAN_LIST.forEach(b => {
+        tdTotalMonths += `<td>${totalIuranPerBulan[b] > 0 ? (totalIuranPerBulan[b]/1000)+'k' : '0'}</td>`;
+      });
+      trTotal.innerHTML = `<td style="text-align:left;"><b>TOTAL</b></td>${tdTotalMonths}<td class="text-in">Rp ${grandTotalIuran.toLocaleString('id-ID')}</td>`;
+      tbodyMatriks.appendChild(trTotal);
+
+      // Render Rincian Pengeluaran
+      let tbodyBeli = document.getElementById('tabelRincianBeli');
+      tbodyBeli.innerHTML = '';
+      let totalPengeluaran = 0;
+
+      appData.pengeluaran.forEach((item, index) => {
+        totalPengeluaran += item.bayar;
+        let tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${index + 1}</td>
+          <td><b>${item.bulan}</b></td>
+          <td>${item.tgl}</td>
+          <td>${item.qty}</td>
+          <td class="text-out">Rp ${item.bayar.toLocaleString('id-ID')}</td>
+          <td>${item.ket}</td>
+          <td class="action-col"><button class="btn-del" onclick="hapusPengeluaran(${item.id})">X</button></td>
+        `;
+        tbodyBeli.appendChild(tr);
+      });
+
+      let totalPemasukanAll = appData.saldoAwal + grandTotalIuran;
+      let saldoAkhir = totalPemasukanAll - totalPengeluaran;
+
+      document.getElementById('totalSaldo').innerText = 'Rp ' + saldoAkhir.toLocaleString('id-ID');
+      document.getElementById('totalPemasukan').innerText = 'Rp ' + grandTotalIuran.toLocaleString('id-ID');
+      document.getElementById('totalPengeluaran').innerText = 'Rp ' + totalPengeluaran.toLocaleString('id-ID');
+    }
+
+    function exportBackup() {
+      let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData, null, 2));
+      let dl = document.createElement('a');
+      dl.setAttribute("href", dataStr);
+      dl.setAttribute("download", `kas_air_backup_${new Date().toISOString().slice(0, 10)}.json`);
+      document.body.appendChild(dl);
+      dl.click();
+      dl.remove();
+    }
+
+    function importBackup() {
+      let fileInput = document.getElementById('fileBackup');
+      let file = fileInput.files[0];
+      if (!file) return alert('Pilih file backup!');
+
+      let reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          appData = JSON.parse(e.target.result);
+          simpanData();
+          alert('Data berhasil di-restore!');
+        } catch(err) {
+          alert('File backup tidak valid!');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    render();
+  </script>
+</body>
+</html>
